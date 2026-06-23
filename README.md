@@ -15,8 +15,8 @@
 uv sync
 ```
 
-    en la raiz del repo y queda listo
 
+en la raiz del repo y queda listo
 
 para correr el script usar en consola:
 

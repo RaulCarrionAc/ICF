@@ -1,7 +1,7 @@
 """
-Punto de entrada del cálculo del Índice de Cumplimiento de Frecuencia (ICF).
+Punto de entrada del cálculo del indice de Cumplimiento de Frecuencia (ICF).
 
-Recorre automáticamente todas las carpetas de mes con datos dentro de
+Recorre automaticamente todas las carpetas de mes con datos dentro de
 data/<EMPRESA>/ (ej. Abril26, Mayo26, Junio26, ...) y genera un reporte
 por cada una.
 
@@ -23,8 +23,6 @@ Estructura de carpetas esperada:
             │   └── expediciones.xls
             └── ...
 
-Uso:
-    python main.py
 """
 
 from pathlib import Path
@@ -37,7 +35,13 @@ from src.indicadores.icf import (
     exportar_resumenes_icf,
     tabla_periodo_vs_fecha,
 )
-from src.indicadores.io_icf import buscar_frecuencias_fijas, leer_expediciones, leer_frecuencias
+
+from src.indicadores.io_icf import (
+    buscar_frecuencias_fijas,
+    construir_calendario_mes,
+    leer_expediciones,
+    leer_frecuencias,
+)
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
@@ -46,6 +50,16 @@ SALIDAS = ROOT / "salidas"
 # Nombre de la empresa = nombre de la carpeta dentro de data/
 EMPRESA = "lider"
 EMPRESA_DIR = DATA / EMPRESA
+
+# Fuente (proveedor) del archivo de expediciones de cada empresa.
+# "transidea": .xls/HTML (lider, toptur)
+# "citymovil": .xlsx (tasacop)
+FUENTE_POR_EMPRESA = {
+    "lider": "transidea",
+    "toptur": "transidea",
+    "tasacop": "citymovil",
+}
+FUENTE = FUENTE_POR_EMPRESA[EMPRESA]
 
 
 def procesar_mes(empresa_dir: Path, ruta_frecuencias: Path, mes_info: dict) -> None:
@@ -64,12 +78,26 @@ def procesar_mes(empresa_dir: Path, ruta_frecuencias: Path, mes_info: dict) -> N
     carpeta_reportes.mkdir(parents=True, exist_ok=True)
 
     
-    print(f"  Leyendo expediciones: {expediciones_path.name}")
-    df_conteo = leer_expediciones(expediciones_path)
-    print(f"  Expediciones válidas leídas: {df_conteo['expediciones_observadas'].sum()}")
+    # print(f"  Leyendo expediciones: {expediciones_path.name}")
+    # df_conteo = leer_expediciones(expediciones_path, fuente=FUENTE)
+    # print(f"  Expediciones válidas leídas: {df_conteo['expediciones_observadas'].sum()}")
+
+    # calendario_mes = construir_calendario_mes(mes_info["anio_num"], mes_info["mes_num"])
+
+    print(f"Leyendo expediciones: {expediciones_path.name}")
+    df_conteo = leer_expediciones(expediciones_path, fuente = FUENTE)
+    print(f"Expediciones validas leidas: {df_conteo["expediciones_observadas"].sum()}")
+
+    #Si cambio fecha_corte con un None realiza todo el mes
+    ultima_fecha = df_conteo["Fecha"].max()
+    calendario_mes = construir_calendario_mes(
+        mes_info["anio_num"],
+        mes_info["mes_num"],
+        fecha_corte = ultima_fecha
+    )
 
     print(f"  Leyendo frecuencias fijas: {ruta_frecuencias.name}")
-    df_base_exigida = leer_frecuencias(df_conteo, ruta_frecuencias)
+    df_base_exigida = leer_frecuencias(calendario_mes, ruta_frecuencias)
 
     # 2. Cálculo del ICF 
     df_icf = crear_df_icf(df_base_exigida, df_conteo)
